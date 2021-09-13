@@ -182,6 +182,7 @@
   "sales_team_section_break",
   "sales_partner",
   "column_break10",
+  "commission_base",
   "commission_rate",
   "total_commission",
   "section_break2",
@@ -2017,7 +2018,12 @@
    "fieldname": "total_billing_hours",
    "fieldtype": "Float",
    "label": "Total Billing Hours",
-   "print_hide": 1,
+   "print_hide": 1
+  },
+  {
+   "fieldname": "commission_base",
+   "fieldtype": "Currency",
+   "label": "Commission Base",
    "read_only": 1
   }
  ],

@@ -134,6 +134,7 @@
   "sales_team_section_break",
   "sales_partner",
   "column_break7",
+  "commission_base",
   "commission_rate",
   "total_commission",
   "section_break1",
@@ -1506,6 +1507,12 @@
    "fieldname": "dispatch_address",
    "fieldtype": "Small Text",
    "label": "Dispatch Address",
+   "read_only": 1
+  },
+  {
+   "fieldname": "commission_base",
+   "fieldtype": "Currency",
+   "label": "Commission Base",
    "read_only": 1
   }
  ],
