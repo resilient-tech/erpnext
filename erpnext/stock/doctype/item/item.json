@@ -24,7 +24,6 @@
   "allow_alternative_item",
   "is_stock_item",
   "include_item_in_manufacturing",
-  "grant_commission",
   "opening_stock",
   "valuation_rate",
   "standard_rate",
@@ -90,6 +89,7 @@
   "sales_details",
   "sales_uom",
   "is_sales_item",
+  "grant_commission",
   "column_break3",
   "max_discount",
   "deferred_revenue",
@@ -1085,10 +1085,11 @@
  "index_web_pages_for_search": 1,
  "links": [],
  "max_attachments": 1,
- "modified": "2021-09-11 07:38:14.395506",
+ "modified": "2021-09-23 06:39:33.641540",
  "modified_by": "Administrator",
  "module": "Stock",
  "name": "Item",
+ "naming_rule": "By fieldname",
  "owner": "Administrator",
  "permissions": [
   {
