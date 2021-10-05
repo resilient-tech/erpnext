@@ -56,6 +56,8 @@ from erpnext.stock.get_item_details import (
 )
 from erpnext.utilities.transaction_base import TransactionBase
 
+sales_doctypes = ('Quotation', 'Sales Order', 'Delivery Note', 'Sales Invoice', 'POS Invoice')
+
 
 class AccountMissingError(frappe.ValidationError): pass
 
@@ -252,7 +254,7 @@ class AccountsController(TransactionBase):
 		from erpnext.controllers.taxes_and_totals import calculate_taxes_and_totals
 		calculate_taxes_and_totals(self)
 
-		if self.doctype in ["Quotation", "Sales Order", "Delivery Note", "Sales Invoice"]:
+		if self.doctype in sales_doctypes:
 			self.calculate_commission()
 			self.calculate_contribution()
 
@@ -1949,7 +1951,6 @@ def update_child_qty_rate(parent_doctype, trans_items, parent_doctype_name, chil
 
 	data = json.loads(trans_items)
 
-	sales_doctypes = ['Sales Order', 'Sales Invoice', 'Delivery Note', 'Quotation']
 	parent = frappe.get_doc(parent_doctype, parent_doctype_name)
 
 	check_doc_permissions(parent, 'write')

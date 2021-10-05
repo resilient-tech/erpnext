@@ -157,26 +157,19 @@ erpnext.selling.SellingController = class SellingController extends erpnext.Tran
 
 	commission_rate() {
 		this.calculate_commission();
-		refresh_field("amount_eligible_for_commission");
-		refresh_field("total_commission");
 	}
 
 	total_commission() {
-		if(this.frm.doc.base_net_total) {
-			frappe.model.round_floats_in(this.frm.doc, ["amount_eligible_for_commission", "total_commission"]);
+		frappe.model.round_floats_in(this.frm.doc, ["amount_eligible_for_commission", "total_commission"]);
 
-			if(this.frm.doc.base_net_total < this.frm.doc.total_commission) {
-				var msg = (__("[Error]") + " " +
-					__(frappe.meta.get_label(this.frm.doc.doctype, "total_commission",
-						this.frm.doc.name)) + " > " +
-					__(frappe.meta.get_label(this.frm.doc.doctype, "amount_eligible_for_commission", this.frm.doc.name)));
-				frappe.msgprint(msg);
-				throw msg;
-			}
+		const { amount_eligible_for_commission } = this.frm.doc;
+		if(!amount_eligible_for_commission) return;
 
-			this.frm.set_value("commission_rate",
-				flt(this.frm.doc.total_commission * 100.0 / this.frm.doc.amount_eligible_for_commission));
-		}
+		this.frm.set_value(
+			"commission_rate", flt(
+				this.frm.doc.total_commission * 100.0 / amount_eligible_for_commission
+			)
+		);
 	}
 
 	allocated_percentage(doc, cdt, cdn) {
@@ -258,20 +251,24 @@ erpnext.selling.SellingController = class SellingController extends erpnext.Tran
 	}
 
 	calculate_commission() {
-		if(this.frm.fields_dict.commission_rate) {
-			if(this.frm.doc.commission_rate > 100) {
-				var msg = __(frappe.meta.get_label(this.frm.doc.doctype, "commission_rate", this.frm.doc.name)) +
-					" " + __("cannot be greater than 100");
-				frappe.msgprint(msg);
-				throw msg;
-			}
+		if(!this.frm.fields_dict.commission_rate) return;
 
-			this.frm.doc.amount_eligible_for_commission = this.frm.doc.items
-				.reduce((sum, item) => item.grant_commission ? sum + item.net_amount : sum, 0)
-
-			this.frm.doc.total_commission = flt(this.frm.doc.amount_eligible_for_commission * this.frm.doc.commission_rate / 100.0,
-				precision("total_commission"));
+		if(this.frm.doc.commission_rate > 100) {
+			const msg = __(frappe.meta.get_label(this.frm.doc.doctype, "commission_rate", this.frm.doc.name)) +
+				" " + __("cannot be greater than 100");
+			this.frm.set_value("commission_rate", 100);
+			frappe.throw(msg);
 		}
+
+		this.frm.doc.amount_eligible_for_commission = this.frm.doc.items
+			.reduce((sum, item) => item.grant_commission ? sum + item.base_net_amount : sum, 0)
+
+		this.frm.doc.total_commission = flt(
+			this.frm.doc.amount_eligible_for_commission * this.frm.doc.commission_rate / 100.0,
+			precision("total_commission")
+		);
+
+		refresh_field(["amount_eligible_for_commission", "total_commission"]);
 	}
 
 	calculate_contribution() {

@@ -121,13 +121,18 @@ class SellingController(StockController):
 			self.in_words = money_in_words(amount, self.currency)
 
 	def calculate_commission(self):
-		if self.meta.get_field("commission_rate"):
-			self.round_floats_in(self, ["amount_eligible_for_commission", "commission_rate"])
-			if self.commission_rate > 100.0:
-				throw(_("Commission rate cannot be greater than 100"))
+		if not self.meta.get_field("commission_rate"):
+			return
 
-			self.total_commission = flt(self.amount_eligible_for_commission * self.commission_rate / 100.0,
-				self.precision("total_commission"))
+		self.round_floats_in(self, ("amount_eligible_for_commission", "commission_rate"))
+		if self.commission_rate > 100.0:
+			throw(_("Commission rate cannot be greater than 100"))
+
+		self.amount_eligible_for_commission = sum(item.base_net_amount for item in self.items if item.grant_commission)
+		self.total_commission = flt(
+			self.amount_eligible_for_commission * self.commission_rate / 100.0,
+			self.precision("total_commission")
+		)
 
 	def calculate_contribution(self):
 		if not self.meta.get_field("sales_team"):
