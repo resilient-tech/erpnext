@@ -145,7 +145,7 @@
   "sales_team_section_break",
   "sales_partner",
   "column_break7",
-  "commission_base",
+  "amount_eligible_for_commission",
   "commission_rate",
   "total_commission",
   "section_break1",
@@ -1306,9 +1306,9 @@
    "read_only": 1
   },
   {
-   "fieldname": "commission_base",
+   "fieldname": "amount_eligible_for_commission",
    "fieldtype": "Currency",
-   "label": "Commission Base",
+   "label": "Amount Eligible for Commission",
    "read_only": 1
   }
  ],
@@ -1316,10 +1316,11 @@
  "idx": 146,
  "is_submittable": 1,
  "links": [],
- "modified": "2021-09-28 13:10:09.761714",
+ "modified": "2021-10-05 12:20:11.670342",
  "modified_by": "Administrator",
  "module": "Stock",
  "name": "Delivery Note",
+ "naming_rule": "By \"Naming Series\" field",
  "owner": "Administrator",
  "permissions": [
   {

@@ -182,7 +182,7 @@
   "sales_team_section_break",
   "sales_partner",
   "column_break10",
-  "commission_base",
+  "amount_eligible_for_commission",
   "commission_rate",
   "total_commission",
   "section_break2",
@@ -2021,9 +2021,9 @@
    "print_hide": 1
   },
   {
-   "fieldname": "commission_base",
+   "fieldname": "amount_eligible_for_commission",
    "fieldtype": "Currency",
-   "label": "Commission Base",
+   "label": "Amount Eligible for Commission",
    "read_only": 1
   }
  ],
@@ -2037,7 +2037,7 @@
    "link_fieldname": "consolidated_invoice"
   }
  ],
- "modified": "2021-10-02 03:36:10.251715",
+ "modified": "2021-10-05 12:10:15.883102",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "Sales Invoice",
