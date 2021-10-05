@@ -650,13 +650,14 @@
    "default": "0",
    "fieldname": "grant_commission",
    "fieldtype": "Check",
-   "label": "Grant Commission"
+   "label": "Grant Commission",
+   "read_only": 1
   }
  ],
  "idx": 1,
  "istable": 1,
  "links": [],
- "modified": "2021-09-13 23:36:53.748152",
+ "modified": "2021-10-05 12:26:50.750668",
  "modified_by": "Administrator",
  "module": "Selling",
  "name": "Quotation Item",

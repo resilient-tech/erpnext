@@ -834,13 +834,14 @@
    "default": "0",
    "fieldname": "grant_commission",
    "fieldtype": "Check",
-   "label": "Grant Commission"
+   "label": "Grant Commission",
+   "read_only": 1
   }
  ],
  "idx": 1,
  "istable": 1,
  "links": [],
- "modified": "2021-09-13 23:34:28.687051",
+ "modified": "2021-10-05 12:24:54.968907",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "Sales Invoice Item",

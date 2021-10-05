@@ -795,16 +795,18 @@
    "default": "0",
    "fieldname": "grant_commission",
    "fieldtype": "Check",
-   "label": "Grant Commission"
+   "label": "Grant Commission",
+   "read_only": 1
   }
  ],
  "idx": 1,
  "istable": 1,
  "links": [],
- "modified": "2021-09-13 23:37:30.811461",
+ "modified": "2021-10-05 12:27:25.014789",
  "modified_by": "Administrator",
  "module": "Selling",
  "name": "Sales Order Item",
+ "naming_rule": "Random",
  "owner": "Administrator",
  "permissions": [],
  "sort_field": "modified",
