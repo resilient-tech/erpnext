@@ -2361,6 +2361,30 @@ class TestSalesInvoice(unittest.TestCase):
 		si.reload()
 		self.assertEqual(si.status, "Paid")
 
+	def test_sales_commission(self):
+		si = frappe.copy_doc(test_records[0])
+
+		for qty, rate, grant_commission in ((10, 100, True), (5, 20, False), (2, 2500, True)):
+			item = copy.deepcopy(si.get('items')[0])
+			item.qty = qty
+			item.rate = rate
+			item.grant_commission = grant_commission
+			si.append("items", item)
+
+		# Test valid values
+		for commission_rate, total_commission in ((0, 0), (10, 600), (57.83, 3469.8), (100, 6000)):
+			si.commission_rate = commission_rate
+			si.save()
+			self.assertEqual(si.amount_eligible_for_commission, 6000)
+			self.assertEqual(si.total_commission, total_commission)
+
+		# Test invalid values
+		for commission_rate in (101, 120, -1, -20):
+			si.reload()
+			si.commission_rate = commission_rate
+			self.assertRaises(frappe.ValidationError, si.save)
+
+
 def get_sales_invoice_for_e_invoice():
 	si = make_sales_invoice_for_ewaybill()
 	si.naming_series = 'INV-2020-.#####'

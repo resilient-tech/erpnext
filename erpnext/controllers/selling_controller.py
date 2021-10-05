@@ -125,8 +125,8 @@ class SellingController(StockController):
 			return
 
 		self.round_floats_in(self, ("amount_eligible_for_commission", "commission_rate"))
-		if self.commission_rate > 100.0:
-			throw(_("Commission rate cannot be greater than 100"))
+		if not (0 <= self.commission_rate <= 100.0):
+			throw(_("Commission rate sould be between 0 and 100"))
 
 		self.amount_eligible_for_commission = sum(item.base_net_amount for item in self.items if item.grant_commission)
 		self.total_commission = flt(
