@@ -709,13 +709,14 @@ erpnext.utils.map_current_doc = function(opts) {
 		const d = new frappe.ui.form.MultiSelectDialog({
 			doctype: opts.source_doctype,
 			target: opts.target,
-			date_field: opts.date_field || undefined,
+			data_fields: opts.data_fields || undefined,
 			setters: opts.setters,
 			get_query: opts.get_query,
 			add_filters_group: 1,
 			allow_child_item_selection: opts.allow_child_item_selection,
 			child_fieldname: opts.child_fielname,
 			child_columns: opts.child_columns,
+			columns: opts.columns,
 			size: opts.size,
 			action: function(selections, args) {
 				let values = selections;

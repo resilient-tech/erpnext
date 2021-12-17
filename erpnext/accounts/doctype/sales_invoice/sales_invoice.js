@@ -142,6 +142,7 @@ erpnext.accounts.SalesInvoiceController = class SalesInvoiceController extends e
 			this.frm.cscript.quotation_btn();
 		}
 
+		this.frm.cscript.timesheet_btn();
 		this.set_default_print_format();
 		if (doc.docstatus == 1 && !doc.inter_company_invoice_reference) {
 			let internal = me.frm.doc.is_internal_customer;
@@ -215,6 +216,43 @@ erpnext.accounts.SalesInvoiceController = class SalesInvoiceController extends e
 						per_billed: ["<", 99.99],
 						company: me.frm.doc.company
 					}
+				})
+			}, __("Get Items From"));
+	}
+	timesheet_btn() {
+		var me = this;
+		this.$timesheet_btn = this.frm.add_custom_button(__('Timesheet'),
+			() => {
+				erpnext.utils.map_current_doc({
+					method: "erpnext.selling.doctype.timesheet.timesheet.make_sales_invoice",
+					source_doctype: "Timesheet",
+					target: me.frm,
+					columns: ["time_sheet", "activity_type", "item", "project_name"],
+					setters:[
+						{
+							"label" : __("From"),
+							"fieldname": "from_time",
+							"fieldtype": "Date",
+							"reqd": 1,
+						},
+						{
+							"label" : __("To"),
+							"fieldname": "to_time",
+							"fieldtype": "Date",
+							"reqd": 1,
+						},
+						{
+							"label" : __("Project"),
+							"fieldname": "project_name",
+							"fieldtype": "Link",
+							options: "Project",
+							default: me.frm.doc.project || undefined,
+						},
+					],
+					get_query_filters: {
+						docstatus: 1,
+					},
+					get_query_method : "erpnext.projects.doctype.timesheet.timesheet.get_timesheets_based_on_project"
 				})
 			}, __("Get Items From"));
 	}
