@@ -38,8 +38,9 @@ from erpnext.assets.doctype.asset.depreciation import (
 	make_depreciation_entry,
 )
 from erpnext.controllers.selling_controller import SellingController
-from erpnext.projects.doctype.timesheet.timesheet import get_projectwise_timesheet_data
+from erpnext.projects.doctype.timesheet.timesheet import get_timesheet_data
 from erpnext.setup.doctype.company.company import update_company_current_month_sales
+from erpnext.setup.utils import get_exchange_rate
 from erpnext.stock.doctype.batch.batch import set_batch_nos
 from erpnext.stock.doctype.delivery_note.delivery_note import update_billed_amount_based_on_so
 from erpnext.stock.doctype.serial_no.serial_no import get_delivery_note_serial_no, get_serial_nos
@@ -751,30 +752,96 @@ class SalesInvoice(SellingController):
 		if not self.timesheets and self.project:
 			self.add_timesheet_data()
 		else:
-			self.calculate_billing_amount_for_timesheet()
+			self.calculate_timesheet_totals()
 
-	@frappe.whitelist()
-	def add_timesheet_data(self):
+	def add_timesheet_data(self, time_logs=None):
+		if not time_logs:
+			if not self.project:
+				return
+
+			time_logs = get_timesheet_data(project=self.project)
+
+		self.set_timesheet_data(time_logs)
+		self.calculate_timesheet_totals()
+		self.update_items_from_timesheets(time_logs)
+
+	def set_timesheet_data(self, time_logs):
 		self.set('timesheets', [])
-		if self.project:
-			for data in get_projectwise_timesheet_data(self.project):
-				self.append('timesheets', {
-						'time_sheet': data.time_sheet,
-						'billing_hours': data.billing_hours,
-						'billing_amount': data.billing_amount,
-						'timesheet_detail': data.name,
-						'activity_type': data.activity_type,
-						'description': data.description
-					})
+		for time_log in time_logs:
+			if time_log.currency != self.currency:
+				exchange_rate = get_exchange_rate(time_log.currency, self.currency)
+				time_log.billing_amount = time_log.billing_amount * (exchange_rate or 1)
 
-			self.calculate_billing_amount_for_timesheet()
+			row = {
+				key: time_log.get(key) for key in (
+					"activity_type",
+					"description",
+					"time_sheet",
+					"from_time",
+					"to_time",
+					"billing_hours",
+					"billing_amount",
+					"project_name"
+				)
+			}
+			row["timesheet_detail"] = time_log.name
+			self.append('timesheets', row)
 
-	def calculate_billing_amount_for_timesheet(self):
+	def calculate_timesheet_totals(self):
 		def timesheet_sum(field):
 			return sum((ts.get(field) or 0.0) for ts in self.timesheets)
 
 		self.total_billing_amount = timesheet_sum("billing_amount")
 		self.total_billing_hours = timesheet_sum("billing_hours")
+
+	def update_items_from_timesheets(self, time_logs=None):
+		if not time_logs:
+			return
+
+		self.set("items", [])
+		item_values = {}
+		activities_without_item = set()
+		calculate_qty, calculate_rate = frappe.get_value("Projects Settings", None, (
+			"calculate_invoice_item_qty_from_billable_hours",
+			"calculate_invoice_item_rate_from_billable_amount"
+		))
+
+		for time_log in time_logs:
+			if not time_log.item:
+				activities_without_item.add(time_log.activity_type)
+				continue
+
+			values = item_values.setdefault(time_log.item, {"qty": 0, "amount": 0})
+			if not time_log.billing_hours:
+				continue
+
+			values["qty"] += time_log.billing_hours
+			values["amount"] += time_log.billing_amount
+
+		if activities_without_item:
+			warning_message = _(
+				"Following Activity Types don't have a linked item:"
+			) + "<br><ul>"
+
+			for activity in activities_without_item:
+				warning_message += f"<li>{activity}</li>"
+
+			warning_message += "</ul>"
+			warning_message += _("Please add the corresponding items manually.")
+
+			frappe.msgprint(warning_message, alert=True, indicator="yellow")
+
+		for item_code, values in item_values.items():
+			item = { "item_code": item_code, "qty": 1, "rate": 0.0 }
+
+			if cint(calculate_qty):
+				item["qty"] = values["qty"]
+				if cint(calculate_rate):
+					item["rate"] = flt(values["amount"] / values["qty"], self.precision("rate", "items"))
+
+			self.append("items", item)
+
+		self.calculate_taxes_and_totals()
 
 	def get_warehouse(self):
 		user_pos_profile = frappe.db.sql("""select name, warehouse from `tabPOS Profile`

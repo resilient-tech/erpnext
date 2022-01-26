@@ -221,14 +221,26 @@ class Timesheet(Document):
 			ts_detail.billing_rate = 0.0
 
 @frappe.whitelist()
-def get_projectwise_timesheet_data(project=None, parent=None, from_time=None, to_time=None):
+def get_timesheet_data(**filters):
+	from_time = filters.pop("from_time", None)
+	to_time = filters.pop("to_time", None)
+	time_logs = filters.pop("time_logs", None)
+	search_text = filters.pop("search_text", None)
+
 	condition = ""
-	if project:
-		condition += "AND tsd.project = %(project)s "
-	if parent:
-		condition += "AND tsd.parent = %(parent)s "
+	for column in ("tsd.project", "tsd.parent", "ts.company"):
+		key = column.split(".")[-1]
+		if key in filters:
+			condition += "AND {0} = {1}".format(column, frappe.db.escape(filters[key]))
+
+	if search_text:
+		condition += "AND ts.name like %(txt)s"
 	if from_time and to_time:
-		condition += "AND CAST(tsd.from_time as DATE) BETWEEN %(from_time)s AND %(to_time)s"
+		condition += "AND CAST(tsd.from_time as DATE) BETWEEN %(from_time)s AND %(to_time)s "
+	if time_logs:
+		condition += "AND tsd.name IN ({})".format(
+			', '.join(map(frappe.db.escape, time_logs))
+			)
 
 	query = f"""
 		SELECT
@@ -256,8 +268,7 @@ def get_projectwise_timesheet_data(project=None, parent=None, from_time=None, to
 	"""
 
 	filters = {
-		"project": project,
-		"parent": parent,
+		"txt": search_text,
 		"from_time": from_time,
 		"to_time": to_time
 	}
@@ -299,18 +310,53 @@ def get_timesheet(doctype, txt, searchfield, start, page_len, filters):
 			})
 
 @frappe.whitelist()
-def get_timesheet_data(name, project):
-	data = None
-	if project and project!='':
-		data = get_projectwise_timesheet_data(project, name)
-	else:
-		data = frappe.get_all('Timesheet',
-			fields = ["(total_billable_amount - total_billed_amount) as billing_amt", "total_billable_hours as billing_hours"], filters = {'name': name})
-	return {
-		'billing_hours': data[0].billing_hours if data else None,
-		'billing_amount': data[0].billing_amt if data else None,
-		'timesheet_detail': data[0].name if data and project and project!= '' else None
-	}
+@frappe.validate_and_sanitize_search_inputs
+def timesheet_query(doctype, txt, searchfield, start, page_len, filters):
+	return get_timesheet_data(search_text=txt, **filters)
+
+@frappe.whitelist()
+def make_sales_invoice(source_name=None, target_doc=None, time_logs=None):
+	if not target_doc:
+		target_doc = frappe.new_doc("Sales Invoice")
+	elif isinstance(target_doc, str):
+		target_doc = frappe.get_doc(json.loads(target_doc))
+
+	if source_name:
+		target_doc = make_sales_invoice_from_timesheet(source_name, target_doc)
+	elif time_logs:
+		if isinstance(time_logs, str):
+			time_logs = json.loads(time_logs)
+
+		target_doc = make_sales_invoice_from_time_logs(time_logs, target_doc)
+
+	target_doc.run_method("calculate_timesheet_totals")
+	target_doc.run_method("set_missing_values")
+
+	return target_doc
+
+def make_sales_invoice_from_timesheet(timesheet_name, si):
+	args = frappe.flags.get("args", {})
+	timesheet = frappe.get_doc('Timesheet', timesheet_name)
+
+	if not timesheet.total_billable_hours:
+		frappe.throw(_("Invoice can't be made for zero billing hour"))
+
+	if timesheet.total_billable_hours == timesheet.total_billed_hours:
+		frappe.throw(_("Invoice already created for all billing hours"))
+
+	for field in ("company", "customer", "currency"):
+		si.set(field, timesheet.get(field))
+
+	# from dialog input
+	if not si.customer and args.get("customer"):
+		si.customer = args.customer
+
+	si.run_method("add_timesheet_data", time_logs=get_timesheet_data(parent=timesheet.name))
+	return si
+
+def make_sales_invoice_from_time_logs(time_logs, si):
+	si.run_method("add_timesheet_data", time_logs=get_timesheet_data(time_logs=time_logs))
+	return si
 
 @frappe.whitelist()
 def make_salary_slip(source_name, target_doc=None):

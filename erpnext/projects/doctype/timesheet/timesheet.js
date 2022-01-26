@@ -45,7 +45,7 @@ frappe.ui.form.on("Timesheet", {
 	refresh: function(frm) {
 		if(frm.doc.docstatus==1) {
 			if(frm.doc.per_billed < 100 && frm.doc.total_billable_hours && frm.doc.total_billable_hours > frm.doc.total_billed_hours){
-				frm.add_custom_button(__('Create Sales Invoice'), function() { frm.trigger("make_invoice") },
+				frm.add_custom_button(__('Create Sales Invoice'), function() { frm.trigger("make_sales_invoice") },
 					"fa fa-file-text");
 			}
 
@@ -162,7 +162,7 @@ frappe.ui.form.on("Timesheet", {
 		frm.refresh_fields();
 	},
 
-	async make_invoice(frm) {
+	async make_sales_invoice(frm) {
 		const args = await new Promise(resolve => {
 			if (frm.doc.customer) return resolve();
 
@@ -183,23 +183,10 @@ frappe.ui.form.on("Timesheet", {
 			}).show();
 		});
 
-		const target_doctype = "Sales Invoice";
-		const sales_invoice = {
-			doctype: target_doctype,
-			customer: frm.doc.customer || (args && args.customer),
-			currency: frm.doc.currency,
-			company: frm.doc.company,
-			__islocal: true
-		};
-		frappe.model.sync(sales_invoice);
-		await frappe.set_route("Form", target_doctype, sales_invoice.name);
-
-		if (!cur_frm || cur_frm.doctype !== target_doctype) return;
-
-		frappe.model.set_default_values(cur_frm.doc);
-		cur_frm.events.add_timesheet_data(cur_frm, {
-			parent: frm.doc.name,
-			project: frm.doc.project,
+		await frappe.model.open_mapped_doc({
+			method: "erpnext.projects.doctype.timesheet.timesheet.make_sales_invoice",
+			frm: frm,
+			args
 		});
 	},
 

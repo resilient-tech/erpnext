@@ -142,6 +142,7 @@ erpnext.accounts.SalesInvoiceController = class SalesInvoiceController extends e
 			this.frm.cscript.quotation_btn();
 		}
 
+		this.timesheet_btn();
 		this.set_default_print_format();
 		if (doc.docstatus == 1 && !doc.inter_company_invoice_reference) {
 			let internal = me.frm.doc.is_internal_customer;
@@ -217,6 +218,76 @@ erpnext.accounts.SalesInvoiceController = class SalesInvoiceController extends e
 					}
 				})
 			}, __("Get Items From"));
+	}
+
+	timesheet_btn() {
+		if (this.frm.doc.docstatus!==0 || this.frm.doc.is_return) return;
+
+		const me = this;
+		this.$timesheet_btn = this.frm.add_custom_button(
+			__("Timesheet"),
+			() => {
+				new frappe.ui.form.MultiSelectDialog({
+					doctype: "Timesheet",
+					target: me.frm,
+					columns: [
+							"time_sheet",
+							"activity_type",
+							"from_time",
+							"project_name",
+						],
+					setters: [
+						{
+							label: __("From"),
+							fieldname: "from_time",
+							fieldtype: "Date",
+						},
+						{
+							label: __("To"),
+							fieldname: "to_time",
+							fieldtype: "Date",
+						},
+						{
+							label: __("Project"),
+							fieldname: "project",
+							fieldtype: "Link",
+							options: "Project",
+							default: me.frm.doc.project,
+						},
+					],
+					get_query() {
+						return {
+							filters: {
+								company: me.frm.doc.company
+							},
+							query: "erpnext.projects.doctype.timesheet.timesheet.timesheet_query"
+						};
+					},
+					async action(selected_values) {
+						if (!selected_values.length) {
+							frappe.msgprint(__("Please select Timesheet"));
+							return;
+						}
+						this.dialog.hide();
+
+						const { message } = await frappe.call({
+							type: "POST",
+							method: "erpnext.projects.doctype.timesheet.timesheet.make_sales_invoice",
+							args: {
+								target_doc: me.frm.doc,
+								time_logs: selected_values
+							},
+						});
+
+						if (!message) return;
+						frappe.model.sync(message);
+						me.frm.dirty();
+						me.frm.refresh();
+					}
+				});
+			},
+			__("Get Items From")
+		);
 	}
 
 	quotation_btn() {
@@ -864,17 +935,11 @@ frappe.ui.form.on('Sales Invoice', {
 		return frm.events.set_timesheet_data(frm, timesheets);
 	},
 
-	async get_timesheet_data(frm, kwargs) {
+	get_timesheet_data(frm, kwargs) {
 		return frappe.call({
-			method: "erpnext.projects.doctype.timesheet.timesheet.get_projectwise_timesheet_data",
+			method: "erpnext.projects.doctype.timesheet.timesheet.get_timesheet_data",
 			args: kwargs
-		}).then(r => {
-			if (!r.exc && r.message.length > 0) {
-				return r.message
-			} else {
-				return []
-			}
-		});
+		}).then(r => !r.exc && r.message.length ? r.message : []);
 	},
 
 	async set_timesheet_data(frm, time_logs) {
@@ -897,6 +962,8 @@ frappe.ui.form.on('Sales Invoice', {
 			frm.events.append_time_log(frm, time_log);
 		}
 
+		frm.refresh_field("timesheets");
+		frm.trigger("calculate_timesheet_totals");
 		frm.events.update_items_from_timesheets(frm, time_logs);
 	},
 
@@ -972,7 +1039,7 @@ frappe.ui.form.on('Sales Invoice', {
 		}
 	},
 
-	append_time_log: function(frm, time_log) {
+	append_time_log(frm, time_log) {
 		const row = frm.add_child("timesheets");
 		for (const key of [
 			"activity_type",
@@ -988,63 +1055,22 @@ frappe.ui.form.on('Sales Invoice', {
 		}
 
 		row.timesheet_detail = time_log.name;
-
-		frm.refresh_field("timesheets");
-		frm.trigger("calculate_timesheet_totals");
 	},
 
-	calculate_timesheet_totals: function(frm) {
-		frm.set_value("total_billing_amount",
-			frm.doc.timesheets.reduce((a, b) => a + (b["billing_amount"] || 0.0), 0.0));
-		frm.set_value("total_billing_hours",
-			frm.doc.timesheets.reduce((a, b) => a + (b["billing_hours"] || 0.0), 0.0));
+	calculate_timesheet_totals(frm) {
+		frm.set_value(
+			frm.doc.timesheets.reduce(
+				(totals, timesheet) =>
+					Object({
+						total_billing_amount: totals.total_billing_amount + (timesheet.billing_amount || 0.0),
+						total_billing_hours: totals.total_billing_hours + (timesheet.billing_hours || 0.0),
+					}),
+				{ total_billing_amount: 0.0, total_billing_hours: 0.0 }
+			)
+		);
 	},
 
 	refresh: function(frm) {
-		if (frm.doc.docstatus===0 && !frm.doc.is_return) {
-			frm.add_custom_button(__("Fetch Timesheet"), function() {
-				let d = new frappe.ui.Dialog({
-					title: __("Fetch Timesheet"),
-					fields: [
-						{
-							"label" : __("From"),
-							"fieldname": "from_time",
-							"fieldtype": "Date",
-							"reqd": 1,
-						},
-						{
-							fieldtype: "Column Break",
-							fieldname: "col_break_1",
-						},
-						{
-							"label" : __("To"),
-							"fieldname": "to_time",
-							"fieldtype": "Date",
-							"reqd": 1,
-						},
-						{
-							"label" : __("Project"),
-							"fieldname": "project",
-							"fieldtype": "Link",
-							"options": "Project",
-							"default": frm.doc.project
-						},
-					],
-					primary_action: function() {
-						const data = d.get_values();
-						frm.events.add_timesheet_data(frm, {
-							from_time: data.from_time,
-							to_time: data.to_time,
-							project: data.project
-						});
-						d.hide();
-					},
-					primary_action_label: __("Get Timesheets")
-				});
-				d.show();
-			});
-		}
-
 		if (frm.doc.is_debit_note) {
 			frm.set_df_property('return_against', 'label', __('Adjustment Against'));
 		}
