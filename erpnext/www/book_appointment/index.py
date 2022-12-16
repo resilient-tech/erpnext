@@ -32,13 +32,6 @@ def get_appointment_settings():
 
 
 @frappe.whitelist(allow_guest=True)
-def get_timezones():
-	import pytz
-
-	return pytz.all_timezones
-
-
-@frappe.whitelist(allow_guest=True)
 def get_appointment_slots(date, timezone):
 	# Convert query to local timezones
 	format_string = "%Y-%m-%d %H:%M:%S"

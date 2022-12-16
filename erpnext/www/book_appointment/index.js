@@ -1,75 +1,161 @@
 frappe.ready(async () => {
-    initialise_select_date();
+    let book_appointment = new BookTimeSlot();
+    book_appointment.show();
+
+    $('#appointment-date').on('input', () => {
+        book_appointment.on_date_or_timezone_select();
+    });
+
+    $('#appointment-timezone').on('change', () => {
+        book_appointment.on_date_or_timezone_select();
+    });
+
 })
 
-window.holiday_list = [];
-
-async function initialise_select_date() {
-    navigate_to_page(1);
-    await get_global_variables();
-    setup_date_picker();
-    setup_timezone_selector();
-    hide_next_button();
-}
-
-async function get_global_variables() {
-    // Using await through this file instead of then.
-    window.appointment_settings = (await frappe.call({
-        method: 'erpnext.www.book_appointment.index.get_appointment_settings'
-    })).message;
-    window.timezones = (await frappe.call({
-        method:'erpnext.www.book_appointment.index.get_timezones'
-    })).message;
-    window.holiday_list = window.appointment_settings.holiday_list;
-}
-
-function setup_timezone_selector() {
-    let timezones_element = document.getElementById('appointment-timezone');
-    let local_timezone = moment.tz.guess()
-    window.timezones.forEach(timezone => {
-        let opt = document.createElement('option');
-        opt.value = timezone;
-        if (timezone == local_timezone) {
-            opt.selected = true;
-        }
-        opt.innerHTML = timezone;
-        timezones_element.appendChild(opt)
-    });
-}
-
-function setup_date_picker() {
-    let date_picker = document.getElementById('appointment-date');
-    let today = new Date();
-    date_picker.min = today.toISOString().substr(0, 10);
-    today.setDate(today.getDate() + window.appointment_settings.advance_booking_days);
-    date_picker.max = today.toISOString().substr(0, 10);
-}
-
-function hide_next_button() {
-    let next_button = document.getElementById('next-button');
-    next_button.disabled = true;
-    next_button.onclick = () => frappe.msgprint(__("Please select a date and time"));
-}
-
-function show_next_button() {
-    let next_button = document.getElementById('next-button');
-    next_button.disabled = false;
-    next_button.onclick = setup_details_page;
-}
-
-function on_date_or_timezone_select() {
-    let date_picker = document.getElementById('appointment-date');
-    let timezone = document.getElementById('appointment-timezone');
-    if (date_picker.value === '') {
-        clear_time_slots();
-        hide_next_button();
-        frappe.throw(__('Please select a date'));
+class BookTimeSlot {
+    constructor() {
+        this.date_picker_element = $('#appointment-date');
+        this.timezone_element = $('#appointment-timezone');
+        this.timeslot_container = $('#timeslot-container');
     }
-    window.selected_date = date_picker.value;
-    window.selected_timezone = timezone.value;
-    update_time_slots(date_picker.value, timezone.value);
-    let lead_text = document.getElementById('lead-text');
-    lead_text.innerHTML = __("Select Time")
+
+    async show() {
+        $('#select-date-time').show();
+        $('#enter-details').hide();
+        await this.get_global_variables();
+        this.setup_date_picker();
+        this.setup_timezone_selector();
+        this.hide_next_button();
+    }
+
+    async get_global_variables() {
+        // Using await through this file instead of then.
+        this.appointment_settings = (await frappe.call({
+            method: 'erpnext.www.book_appointment.index.get_appointment_settings'
+        })).message;
+        this.timezones = (await frappe.call({
+            method:'frappe.core.doctype.user.user.get_timezones'
+        })).message.timezones;
+    }
+
+    setup_date_picker() {
+        let today = frappe.datetime.get_today();
+        this.date_picker_element.prop('min', today);
+        this.date_picker_element.prop('max', frappe.datetime.add_days(today, this.appointment_settings.advance_booking_days));
+    }
+
+    setup_timezone_selector() {
+        let local_timezone = moment.tz.guess();
+
+        this.timezones.forEach((timezone) => {
+            const option = ($('<option>').val(timezone).text(timezone));
+            if (timezone == local_timezone) {
+                option.attr('selected', true);
+            }
+            option.appendTo(this.timezone_element);
+        })
+    }
+
+    on_date_or_timezone_select() {
+        this.selected_date = this.date_picker_element.val();
+        this.selected_timezone = this.timezone_element.val();
+
+        if (!this.selected_date) {
+            this.clear_time_slots();
+            this.hide_next_button();
+            frappe.throw(__('Please select a date'));
+        }
+
+        this.update_time_slots();
+        $('#lead-text').html(__("Select Time"));
+    }
+
+    clear_time_slots() {
+        // Clear any existing divs in timeslot container
+        let timeslot_container = document.getElementById('timeslot-container');
+        while (timeslot_container.firstChild) {
+            timeslot_container.removeChild(timeslot_container.firstChild);
+        }
+
+    }
+
+    async update_time_slots() {
+        let time_slots = await get_time_slots(this.selected_date, this.selected_timezone);
+        this.clear_time_slots();
+
+        if (!time_slots.length) {
+            let message_div = $('p').html(__("There are no slots available on this date"));
+            message_div.appendTo($('#timeslot-container'));
+            return;
+        }
+
+        time_slots.forEach((slot) => {
+            // Get and append timeslot div
+            let timeslot_div = this.get_timeslot_div_layout(slot)
+            $('#timeslot-container').append(timeslot_div);
+        });
+        set_default_timeslot();
+    }
+
+    get_timeslot_div_layout(timeslot) {
+        let timeslot_div = document.createElement('div');
+        timeslot_div.classList.add('time-slot');
+
+        if (!timeslot.availability) {
+            timeslot_div.classList.add('unavailable')
+        }
+
+        timeslot_div.innerHTML = this.get_slot_layout(timeslot.time);
+        timeslot_div.id = timeslot.time.substring(11, 19);
+        timeslot_div.addEventListener('click', this.select_time);
+        return timeslot_div
+    }
+
+    get_slot_layout(start_time) {
+        let start_time_string = frappe.datetime.get_time(start_time);
+        let end_time = moment(start_time).tz(this.selected_timezone).add(this.appointment_settings.appointment_duration, 'minutes');
+        let end_time_string = end_time.format("LT");
+
+        return `<span style="font-size: 1.2em;">${start_time_string}</span><br><span class="text-muted small">${__("to") } ${end_time_string}</span>`;
+    }
+
+    select_time() {
+        if (this.classList.contains('unavailable')) {
+            return;
+        }
+        let selected_element = document.getElementsByClassName('selected');
+        if (!(selected_element.length > 0)) {
+            this.classList.add('selected');
+            this.show_next_button();
+            return;
+        }
+        selected_element = selected_element[0]
+        window.selected_time = this.id;
+        selected_element.classList.remove('selected');
+        this.classList.add('selected');
+        this.show_next_button();
+    }
+
+    hide_next_button() {
+        $('#next-button').prop('disabled', true);
+        $('#next-button').click = () => frappe.msgprint(__("Please select a date and time"));
+    }
+
+    show_next_button() {
+        $('#next-button').prop('disabled', false);
+        $('#next-button').click = setup_details_page;
+    }
+
+    setup_details_page() {
+        $('#select-date-time').hide();
+        $('#enter-details').show();
+        let date_container = document.getElementsByClassName('date-span')[0];
+        let time_container = document.getElementsByClassName('time-span')[0];
+        setup_search_params();
+        date_container.innerHTML = moment(this.selected_date).format("MMM Do YYYY");
+        time_container.innerHTML = moment(this.selected_time, "HH:mm:ss").format("LT");
+    }
+
 }
 
 async function get_time_slots(date, timezone) {
@@ -83,71 +169,6 @@ async function get_time_slots(date, timezone) {
     return slots;
 }
 
-async function update_time_slots(selected_date, selected_timezone) {
-    let timeslot_container = document.getElementById('timeslot-container');
-    window.slots = await get_time_slots(selected_date, selected_timezone);
-    clear_time_slots();
-    if (window.slots.length <= 0) {
-        let message_div = document.createElement('p');
-        message_div.innerHTML = __("There are no slots available on this date");
-        timeslot_container.appendChild(message_div);
-        return
-    }
-    window.slots.forEach((slot, index) => {
-        // Get and append timeslot div
-        let timeslot_div = get_timeslot_div_layout(slot)
-        timeslot_container.appendChild(timeslot_div);
-    });
-    set_default_timeslot();
-}
-
-function get_timeslot_div_layout(timeslot) {
-    let start_time = new Date(timeslot.time)
-    let timeslot_div = document.createElement('div');
-    timeslot_div.classList.add('time-slot');
-    if (!timeslot.availability) {
-        timeslot_div.classList.add('unavailable')
-    }
-    timeslot_div.innerHTML = get_slot_layout(start_time);
-    timeslot_div.id = timeslot.time.substring(11, 19);
-    timeslot_div.addEventListener('click', select_time);
-    return timeslot_div
-}
-
-function clear_time_slots() {
-    // Clear any existing divs in timeslot container
-    let timeslot_container = document.getElementById('timeslot-container');
-    while (timeslot_container.firstChild) {
-        timeslot_container.removeChild(timeslot_container.firstChild);
-    }
-}
-
-function get_slot_layout(time) {
-    let timezone = document.getElementById("appointment-timezone").value;
-    time = new Date(time);
-    let start_time_string = moment(time).tz(timezone).format("LT");
-    let end_time = moment(time).tz(timezone).add(window.appointment_settings.appointment_duration, 'minutes');
-    let end_time_string = end_time.format("LT");
-    return `<span style="font-size: 1.2em;">${start_time_string}</span><br><span class="text-muted small">${__("to") } ${end_time_string}</span>`;
-}
-
-function select_time() {
-    if (this.classList.contains('unavailable')) {
-        return;
-    }
-    let selected_element = document.getElementsByClassName('selected');
-    if (!(selected_element.length > 0)) {
-        this.classList.add('selected');
-        show_next_button();
-        return;
-    }
-    selected_element = selected_element[0]
-    window.selected_time = this.id;
-    selected_element.classList.remove('selected');
-    this.classList.add('selected');
-    show_next_button();
-}
-
 function set_default_timeslot() {
     let timeslots = document.getElementsByClassName('time-slot')
     // Can't use a forEach here since, we need to break the loop after a timeslot is selected
@@ -157,23 +178,6 @@ function set_default_timeslot() {
             timeslot.classList.add('selected');
             break;
         }
-    }
-}
-
-function navigate_to_page(page_number) {
-    let page1 = document.getElementById('select-date-time');
-    let page2 = document.getElementById('enter-details');
-    switch (page_number) {
-        case 1:
-            page1.style.display = 'block';
-            page2.style.display = 'none';
-            break;
-        case 2:
-            page1.style.display = 'none';
-            page2.style.display = 'block';
-            break;
-        default:
-            break;
     }
 }
 
