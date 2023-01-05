@@ -96,25 +96,21 @@ class BookTimeSlot {
 
 		if (!timeslot.availability) timeslot_div.addClass('unavailable');
 
-		timeslot_div.html(this.get_slot_layout(timeslot.time));
-		timeslot_div.attr('id', timeslot.time.substring(11, 19));
+		timeslot_div.html(this.get_slot_layout(timeslot));
+		timeslot_div.attr('id', timeslot.from_time.substring(0, 5));
 		timeslot_div.on('click', function(event) {
 			me.select_time(event.currentTarget);
 		});
 		return timeslot_div
 	}
 
-	get_slot_layout(start_time) {
-		const start_time_string = frappe.datetime.get_time(start_time);
-		const end_time = moment(start_time).tz(this.selected_timezone).add(this.appointment_settings.appointment_duration, 'minutes');
-		const end_time_string = end_time.format("LT");
-
+	get_slot_layout(timeslot) {
 		return `
 			<span style="font-size: 1.2em;">
-				${start_time_string}
+				${timeslot.from_time}
 			</span><br>
 			<span class="text-muted small">
-				${__("to") } ${end_time_string}
+				${__("to") } ${timeslot.to_time}
 			</span>
 		`;
 	}
@@ -181,7 +177,6 @@ class BookTimeSlot {
 		}
 
 		let contact = get_form_data();
-		console.log(contact);
 		frappe.call({
 			method: 'erpnext.www.book_appointment.index.create_appointment',
 			args: {
