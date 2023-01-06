@@ -2,19 +2,17 @@ import datetime
 import json
 
 import frappe
-import pytz
 from frappe import _
-
-WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+from frappe.utils.data import get_datetime, get_time, get_weekday
+from pytz import timezone
 
 no_cache = 1
 
 
 def get_context(context):
 	is_enabled = frappe.db.get_single_value("Appointment Booking Settings", "enable_scheduling")
-	if is_enabled:
-		return context
-	else:
+
+	if not is_enabled:
 		frappe.redirect_to_message(
 			_("Appointment Scheduling Disabled"),
 			_("Appointment Scheduling has been disabled for this site"),
@@ -22,6 +20,107 @@ def get_context(context):
 			indicator_color="red",
 		)
 		raise frappe.Redirect
+
+	return context
+
+
+class AppointmentBooking:
+	def __init__(self, date, timezone) -> None:
+		self.date = date
+		self.timezone = timezone
+
+	def get_appointment_slots(self):
+		self.set_default_data()
+		self.set_system_day_start_end_datetime()
+		available_slots = self.get_available_slots()
+		now_datetime = self.convert_to_guest_timezone(datetime.datetime.now())
+
+		available_timeslots = []
+		for slot in available_slots:
+			if slot.date() != self.day_start.date():
+				continue
+
+			slot_dict = frappe._dict(
+				from_time=slot.strftime("%I:%M %p"),
+				to_time=(slot + self.appointment_duration).strftime("%I:%M %p"),
+			)
+
+			if _is_holiday(slot.date(), self.holiday_list):
+				available_timeslots.append(slot_dict.update(availability=False))
+				continue
+
+			if check_availabilty(slot, self.settings.number_of_agents) and slot >= now_datetime:
+				slot_dict.update(availability=True)
+			else:
+				slot_dict.update(availability=False)
+
+			available_timeslots.append(slot_dict)
+
+		return available_timeslots
+
+	def create_appointment(self, time, contact):
+		appointment_datetime = get_datetime(self.date + " " + time)
+		scheduled_time = self.convert_to_system_timezone(appointment_datetime)
+
+		if isinstance(contact, str):
+			contact = frappe._dict(json.loads(contact))
+
+		appointment = frappe.get_doc(
+			{
+				"doctype": "Appointment",
+				"scheduled_time": scheduled_time.replace(tzinfo=None),
+				"customer_name": contact.name,
+				"customer_phone_number": contact.number,
+				"customer_skype": contact.skype,
+				"customer_details": contact.notes,
+				"customer_email": contact.email,
+				"status": "Open",
+			}
+		)
+		appointment.insert(ignore_permissions=True)
+		return appointment
+
+	def set_default_data(self):
+		self.day_start = get_datetime(self.date + " 00:00:00")
+		self.day_end = get_datetime(self.date + " 23:59:59")
+		self.settings = frappe.get_cached_doc("Appointment Booking Settings")
+		self.holiday_list = frappe.get_cached_doc("Holiday List", self.settings.holiday_list)
+		self.appointment_duration = datetime.timedelta(minutes=self.settings.appointment_duration)
+
+	def get_available_slots(self):
+		selected_day = get_weekday(self.day_start_time)
+
+		available_slots = []
+		for slot in self.settings.availability_of_slots:
+			if not (slot.day_of_week == selected_day or slot.day_of_week == get_weekday(self.day_end_time)):
+				continue
+
+			booking_date = self.day_start_time if slot.day_of_week == selected_day else self.day_end_time
+
+			available_from = get_combined_datetime(booking_date, slot.from_time)
+			available_to = get_combined_datetime(booking_date, slot.to_time)
+
+			while available_from < available_to:
+				available_slots.append(self.convert_to_guest_timezone(available_from))
+				available_from += self.appointment_duration
+
+		return available_slots
+
+	def set_system_day_start_end_datetime(self):
+		self.day_start_time = self.convert_to_system_timezone(self.day_start)
+		self.day_end_time = self.convert_to_system_timezone(self.day_end)
+
+	def convert_to_system_timezone(self, datetime):
+		guest_timezone = timezone(self.timezone).localize(datetime)
+		system_timezone = timezone(frappe.utils.get_time_zone())
+		system_datetime = guest_timezone.astimezone(system_timezone)
+		return system_datetime
+
+	def convert_to_guest_timezone(self, datetime):
+		guest_timezone = timezone(self.timezone)
+		local_timezone = timezone(frappe.utils.get_time_zone()).localize(datetime)
+		guest_datetime = local_timezone.astimezone(guest_timezone)
+		return guest_datetime
 
 
 @frappe.whitelist(allow_guest=True)
@@ -44,128 +143,29 @@ def get_timezones():
 
 @frappe.whitelist(allow_guest=True)
 def get_appointment_slots(date, timezone):
-	# Convert query to local timezones
-	format_string = "%Y-%m-%d %H:%M:%S"
-	query_start_time = datetime.datetime.strptime(date + " 00:00:00", format_string)
-	query_end_time = datetime.datetime.strptime(date + " 23:59:59", format_string)
-	query_start_time = convert_to_system_timezone(timezone, query_start_time)
-	query_end_time = convert_to_system_timezone(timezone, query_end_time)
-	now = convert_to_guest_timezone(timezone, datetime.datetime.now())
-
-	# Database queries
-	settings = frappe.get_doc("Appointment Booking Settings")
-	holiday_list = frappe.get_doc("Holiday List", settings.holiday_list)
-	timeslots = get_available_slots_between(query_start_time, query_end_time, settings)
-
-	# Filter and convert timeslots
-	converted_timeslots = []
-	for timeslot in timeslots:
-		converted_timeslot = convert_to_guest_timezone(timezone, timeslot)
-		# Check if holiday
-		if _is_holiday(converted_timeslot.date(), holiday_list):
-			converted_timeslots.append(dict(time=converted_timeslot, availability=False))
-			continue
-		# Check availability
-		if check_availabilty(timeslot, settings) and converted_timeslot >= now:
-			converted_timeslots.append(dict(time=converted_timeslot, availability=True))
-		else:
-			converted_timeslots.append(dict(time=converted_timeslot, availability=False))
-	date_required = datetime.datetime.strptime(date + " 00:00:00", format_string).date()
-	converted_timeslots = filter_timeslots(date_required, converted_timeslots)
-	return converted_timeslots
-
-
-def get_available_slots_between(query_start_time, query_end_time, settings):
-	records = _get_records(query_start_time, query_end_time, settings)
-	timeslots = []
-	appointment_duration = datetime.timedelta(minutes=settings.appointment_duration)
-	for record in records:
-		if record.day_of_week == WEEKDAYS[query_start_time.weekday()]:
-			current_time = _deltatime_to_datetime(query_start_time, record.from_time)
-			end_time = _deltatime_to_datetime(query_start_time, record.to_time)
-		else:
-			current_time = _deltatime_to_datetime(query_end_time, record.from_time)
-			end_time = _deltatime_to_datetime(query_end_time, record.to_time)
-		while current_time + appointment_duration <= end_time:
-			timeslots.append(current_time)
-			current_time += appointment_duration
-	return timeslots
+	appointment_booking = AppointmentBooking(date, timezone)
+	return appointment_booking.get_appointment_slots()
 
 
 @frappe.whitelist(allow_guest=True)
-def create_appointment(date, time, tz, contact):
-	format_string = "%Y-%m-%d %H:%M:%S"
-	scheduled_time = datetime.datetime.strptime(date + " " + time, format_string)
-	# Strip tzinfo from datetime objects since it's handled by the doctype
-	scheduled_time = scheduled_time.replace(tzinfo=None)
-	scheduled_time = convert_to_system_timezone(tz, scheduled_time)
-	scheduled_time = scheduled_time.replace(tzinfo=None)
-	# Create a appointment document from form
-	appointment = frappe.new_doc("Appointment")
-	appointment.scheduled_time = scheduled_time
-	contact = json.loads(contact)
-	appointment.customer_name = contact.get("name", None)
-	appointment.customer_phone_number = contact.get("number", None)
-	appointment.customer_skype = contact.get("skype", None)
-	appointment.customer_details = contact.get("notes", None)
-	appointment.customer_email = contact.get("email", None)
-	appointment.status = "Open"
-	appointment.insert(ignore_permissions=True)
-	return appointment
+def create_appointment(date, time, timezone, contact):
+	appointment_booking = AppointmentBooking(date, timezone)
+	return appointment_booking.create_appointment(time, contact)
 
 
 # Helper Functions
-def filter_timeslots(date, timeslots):
-	filtered_timeslots = []
-	for timeslot in timeslots:
-		if timeslot["time"].date() == date:
-			filtered_timeslots.append(timeslot)
-	return filtered_timeslots
-
-
-def convert_to_guest_timezone(guest_tz, datetimeobject):
-	guest_tz = pytz.timezone(guest_tz)
-	local_timezone = pytz.timezone(frappe.utils.get_time_zone())
-	datetimeobject = local_timezone.localize(datetimeobject)
-	datetimeobject = datetimeobject.astimezone(guest_tz)
-	return datetimeobject
-
-
-def convert_to_system_timezone(guest_tz, datetimeobject):
-	guest_tz = pytz.timezone(guest_tz)
-	datetimeobject = guest_tz.localize(datetimeobject)
-	system_tz = pytz.timezone(frappe.utils.get_time_zone())
-	datetimeobject = datetimeobject.astimezone(system_tz)
-	return datetimeobject
-
-
-def check_availabilty(timeslot, settings):
-	return frappe.db.count("Appointment", {"scheduled_time": timeslot}) < settings.number_of_agents
+def check_availabilty(timeslot, number_of_agents):
+	return frappe.db.count("Appointment", {"scheduled_time": timeslot}) < number_of_agents
 
 
 def _is_holiday(date, holiday_list):
+	"""Returns True if given date is a holiday"""
 	for holiday in holiday_list.holidays:
 		if holiday.holiday_date == date:
 			return True
 	return False
 
 
-def _get_records(start_time, end_time, settings):
-	records = []
-	for record in settings.availability_of_slots:
-		if (
-			record.day_of_week == WEEKDAYS[start_time.weekday()]
-			or record.day_of_week == WEEKDAYS[end_time.weekday()]
-		):
-			records.append(record)
-	return records
-
-
-def _deltatime_to_datetime(date, deltatime):
-	time = (datetime.datetime.min + deltatime).time()
-	return datetime.datetime.combine(date.date(), time)
-
-
-def _datetime_to_deltatime(date_time):
-	midnight = datetime.datetime.combine(date_time.date(), datetime.time.min)
-	return date_time - midnight
+def get_combined_datetime(date, time):
+	"""Returns a combined datetime object from given date and time objects"""
+	return datetime.datetime.combine(date.date(), get_time(time))

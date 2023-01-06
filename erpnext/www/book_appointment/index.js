@@ -183,7 +183,7 @@ class BookTimeSlot {
 				'date': this.selected_date,
 				'time': this.selected_time,
 				'contact': contact,
-				'tz':this.selected_timezone
+				'timezone':this.selected_timezone
 			},
 			callback: (response)=>{
 				if (response.message.status == "Unverified") {
