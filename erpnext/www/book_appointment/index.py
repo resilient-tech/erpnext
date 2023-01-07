@@ -1,5 +1,4 @@
 import datetime
-import json
 
 import frappe
 from frappe import _
@@ -63,7 +62,7 @@ class AppointmentBooking:
 		scheduled_time = self.convert_to_system_timezone(appointment_datetime)
 
 		if isinstance(contact, str):
-			contact = frappe._dict(json.loads(contact))
+			contact = frappe.parse_json(contact)
 
 		appointment = frappe.get_doc(
 			{
