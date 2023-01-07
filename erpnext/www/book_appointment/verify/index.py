@@ -10,11 +10,11 @@ def get_context(context):
 	email = frappe.form_dict["email"]
 	appointment_name = frappe.form_dict["appointment"]
 
-	if email and appointment_name:
+	if not (email and appointment_name):
+		context.success = False
+	else:
 		appointment = frappe.get_doc("Appointment", appointment_name)
 		appointment.set_verified(email)
 		context.success = True
-		return context
-	else:
-		context.success = False
-		return context
+
+	return context
