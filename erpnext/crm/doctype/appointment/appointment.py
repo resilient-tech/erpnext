@@ -106,10 +106,10 @@ class Appointment(Document):
 
 		self.create_lead()
 		self.status = "Open"
-		# Create calender event
 		self.auto_assign_agent()
 		self.create_calendar_event()
 		self.save(ignore_permissions=True)
+		frappe.db.commit()
 
 	def create_lead(self):
 		if self.party:
