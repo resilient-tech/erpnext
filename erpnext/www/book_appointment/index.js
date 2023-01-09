@@ -28,7 +28,7 @@ class BookTimeSlot {
 		await this.get_global_variables();
 		this.setup_date_picker();
 		this.setup_timezone_selector();
-		this.hide_button($('#next-button'));
+		this.disable_button($('#next-button'));
 	}
 
 	async get_global_variables() {
@@ -65,7 +65,7 @@ class BookTimeSlot {
 		this.clear_time_slots();
 
 		if (!this.selected_date) {
-			this.hide_button($('#next-button'));
+			this.disable_button($('#next-button'));
 			frappe.throw(__('Please select a date'));
 		}
 
@@ -123,14 +123,14 @@ class BookTimeSlot {
 
 		if (!(selected_element.length > 0)) {
 			timeslot_div.classList.add('selected');
-			this.show_button(next_button);
+			this.enable_button(next_button);
 			return;
 		}
 
 		this.selected_time = timeslot_div.id;
 		selected_element[0].classList.remove('selected');
 		timeslot_div.classList.add('selected');
-		this.show_button(next_button);
+		this.enable_button(next_button);
 
 	}
 
@@ -167,12 +167,12 @@ class BookTimeSlot {
 
 	async submit() {
 		let button = $('#submit-button');
-		this.hide_button(button);
+		this.disable_button(button);
 
 		let form = document.querySelector('#customer-form');
 		if (!form.checkValidity()) {
 			form.reportValidity();
-			this.show_button(button);
+			this.enable_button(button);
 			return;
 		}
 
@@ -202,7 +202,7 @@ class BookTimeSlot {
 			},
 			error: (err)=>{
 				frappe.show_alert(__("Something went wrong please try again"));
-				this.show_button(button);
+				this.enable_button(button);
 			}
 		});
 	}
@@ -229,11 +229,11 @@ class BookTimeSlot {
 		}
 	}
 
-	hide_button(button) {
+	disable_button(button) {
 		button.prop('disabled', true);
 	}
 
-	show_button(button) {
+	enable_button(button) {
 		button.prop('disabled', false);
 
 		if (button.prop('id') !== 'next-button') return;
