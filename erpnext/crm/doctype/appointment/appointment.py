@@ -33,8 +33,8 @@ class Appointment(Document):
 		if not party:
 			return
 
-		self.appointment_with = party["doctype"]
-		self.party = party["name"]
+		self.appointment_with = party.doctype
+		self.party = party.name
 
 	def after_insert(self):
 		if self.party:
@@ -50,18 +50,18 @@ class Appointment(Document):
 		if not self.calendar_event:
 			return
 
-		calender_event = frappe.get_doc("Event", self.calendar_event)
-		calender_event.starts_on = self.scheduled_time
-		calender_event.save(ignore_permissions=True)
+		frappe.db.set_value("Event", self.calendar_event, "starts_on", self.scheduled_time)
 
 	def get_party_by_email(self):
 		for doctype in ("Customer", "Lead"):
 			party = frappe.get_all(doctype, filters={"email_id": self.customer_email})
 			if party:
-				return {
-					"doctype": doctype,
-					"name": party[0].name,
-				}
+				return frappe._dict(
+					{
+						"doctype": doctype,
+						"name": party[0].name,
+					}
+				)
 		return None
 
 	def auto_assign_agent(self):
@@ -101,8 +101,8 @@ class Appointment(Document):
 		frappe.msgprint(message)
 
 	def set_verified(self, email):
-		if not email == self.customer_email:
-			frappe.throw(_("Email verification failed."))
+		if email != self.customer_email:
+			frappe.throw(_("Email ID does not match. Email verification failed."))
 
 		self.create_lead()
 		self.status = "Open"
