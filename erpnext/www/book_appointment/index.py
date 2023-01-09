@@ -23,7 +23,7 @@ def get_context(context):
 	return context
 
 
-class AppointmentBooking:
+class BookAppointment:
 	def __init__(self, date, timezone) -> None:
 		self.date = date
 		self.timezone = timezone
@@ -142,14 +142,14 @@ def get_timezones():
 
 @frappe.whitelist(allow_guest=True)
 def get_appointment_slots(date, timezone):
-	appointment_booking = AppointmentBooking(date, timezone)
-	return appointment_booking.get_appointment_slots()
+	book_appointment = BookAppointment(date, timezone)
+	return book_appointment.get_appointment_slots()
 
 
 @frappe.whitelist(allow_guest=True)
 def create_appointment(date, time, timezone, contact):
-	appointment_booking = AppointmentBooking(date, timezone)
-	return appointment_booking.create_appointment(time, contact)
+	book_appointment = BookAppointment(date, timezone)
+	return book_appointment.create_appointment(time, contact)
 
 
 # Helper Functions
