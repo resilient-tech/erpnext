@@ -76,10 +76,11 @@
    "link_fieldname": "goal"
   }
  ],
- "modified": "2020-10-27 15:57:59.368605",
+ "modified": "2023-02-01 14:53:04.760524",
  "modified_by": "Administrator",
  "module": "Quality Management",
  "name": "Quality Goal",
+ "naming_rule": "By fieldname",
  "owner": "Administrator",
  "permissions": [
   {
@@ -102,12 +103,13 @@
    "print": 1,
    "read": 1,
    "report": 1,
-   "role": "All",
+   "role": "Quality Manager",
    "share": 1,
    "write": 1
   }
  ],
  "sort_field": "modified",
  "sort_order": "DESC",
+ "states": [],
  "track_changes": 1
 }

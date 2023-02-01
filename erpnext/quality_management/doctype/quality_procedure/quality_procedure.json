@@ -115,10 +115,11 @@
    "link_fieldname": "procedure"
   }
  ],
- "modified": "2020-10-26 15:25:39.316088",
+ "modified": "2023-02-01 14:47:23.320644",
  "modified_by": "Administrator",
  "module": "Quality Management",
  "name": "Quality Procedure",
+ "naming_rule": "By fieldname",
  "nsm_parent_field": "parent_quality_procedure",
  "owner": "Administrator",
  "permissions": [
@@ -142,12 +143,13 @@
    "print": 1,
    "read": 1,
    "report": 1,
-   "role": "All",
+   "role": "Quality Manager",
    "share": 1,
    "write": 1
   }
  ],
  "sort_field": "modified",
  "sort_order": "DESC",
+ "states": [],
  "track_changes": 1
 }

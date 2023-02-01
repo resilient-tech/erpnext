@@ -2143,11 +2143,10 @@
    "link_fieldname": "consolidated_invoice"
   }
  ],
- "modified": "2023-01-28 19:45:47.538163",
+ "modified": "2023-01-31 16:16:37.768556",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "Sales Invoice",
- "name_case": "Title Case",
  "naming_rule": "By \"Naming Series\" field",
  "owner": "Administrator",
  "permissions": [
@@ -2182,11 +2181,6 @@
    "read": 1,
    "role": "Accounts Manager",
    "write": 1
-  },
-  {
-   "permlevel": 1,
-   "read": 1,
-   "role": "All"
   }
  ],
  "quick_entry": 1,

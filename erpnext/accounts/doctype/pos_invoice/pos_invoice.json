@@ -1554,11 +1554,10 @@
  "icon": "fa fa-file-text",
  "is_submittable": 1,
  "links": [],
- "modified": "2022-09-30 03:49:50.455199",
+ "modified": "2023-02-01 10:17:29.958756",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "POS Invoice",
- "name_case": "Title Case",
  "naming_rule": "By \"Naming Series\" field",
  "owner": "Administrator",
  "permissions": [
@@ -1593,11 +1592,6 @@
    "read": 1,
    "role": "Accounts Manager",
    "write": 1
-  },
-  {
-   "permlevel": 1,
-   "read": 1,
-   "role": "All"
   }
  ],
  "search_fields": "posting_date, due_date, customer, base_grand_total, outstanding_amount",

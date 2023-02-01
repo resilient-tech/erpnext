@@ -451,7 +451,7 @@
  "index_web_pages_for_search": 1,
  "links": [],
  "max_attachments": 4,
- "modified": "2022-06-23 16:45:06.108499",
+ "modified": "2023-02-01 11:12:17.695694",
  "modified_by": "Administrator",
  "module": "Projects",
  "name": "Project",
@@ -468,12 +468,6 @@
    "role": "Projects User",
    "share": 1,
    "write": 1
-  },
-  {
-   "permlevel": 1,
-   "read": 1,
-   "report": 1,
-   "role": "All"
   },
   {
    "create": 1,

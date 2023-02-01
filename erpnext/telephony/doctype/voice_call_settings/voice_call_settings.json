@@ -53,10 +53,11 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2020-12-14 18:49:34.600194",
+ "modified": "2023-02-01 15:20:56.004260",
  "modified_by": "Administrator",
  "module": "Telephony",
  "name": "Voice Call Settings",
+ "naming_rule": "By fieldname",
  "owner": "Administrator",
  "permissions": [
   {
@@ -64,6 +65,7 @@
    "delete": 1,
    "email": 1,
    "export": 1,
+   "if_owner": 1,
    "print": 1,
    "read": 1,
    "report": 1,
@@ -110,7 +112,7 @@
   {
    "email": 1,
    "export": 1,
-   "permlevel": 2,
+   "permlevel": 1,
    "print": 1,
    "read": 1,
    "report": 1,
@@ -120,5 +122,6 @@
  ],
  "sort_field": "modified",
  "sort_order": "DESC",
+ "states": [],
  "track_changes": 1
 }

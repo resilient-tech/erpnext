@@ -84,10 +84,11 @@
    "link_fieldname": "review"
   }
  ],
- "modified": "2020-10-21 12:56:47.046172",
+ "modified": "2023-02-01 14:38:22.133072",
  "modified_by": "Administrator",
  "module": "Quality Management",
  "name": "Quality Review",
+ "naming_rule": "Expression",
  "owner": "Administrator",
  "permissions": [
   {
@@ -110,18 +111,6 @@
    "print": 1,
    "read": 1,
    "report": 1,
-   "role": "All",
-   "share": 1,
-   "write": 1
-  },
-  {
-   "create": 1,
-   "delete": 1,
-   "email": 1,
-   "export": 1,
-   "print": 1,
-   "read": 1,
-   "report": 1,
    "role": "Quality Manager",
    "share": 1,
    "write": 1
@@ -129,6 +118,7 @@
  ],
  "sort_field": "modified",
  "sort_order": "DESC",
+ "states": [],
  "title_field": "goal",
  "track_changes": 1
 }

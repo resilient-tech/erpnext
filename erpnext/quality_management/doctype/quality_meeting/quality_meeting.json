@@ -48,10 +48,11 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2021-02-27 16:36:45.657883",
+ "modified": "2023-02-01 12:53:39.033621",
  "modified_by": "Administrator",
  "module": "Quality Management",
  "name": "Quality Meeting",
+ "naming_rule": "Expression",
  "owner": "Administrator",
  "permissions": [
   {
@@ -74,7 +75,7 @@
    "print": 1,
    "read": 1,
    "report": 1,
-   "role": "All",
+   "role": "Quality Manager",
    "share": 1,
    "write": 1
   }
@@ -82,5 +83,6 @@
  "quick_entry": 1,
  "sort_field": "modified",
  "sort_order": "DESC",
+ "states": [],
  "track_changes": 1
 }
