@@ -221,6 +221,12 @@ class ProductQuery:
 
 	def add_display_details(self, result, discount_list, cart_items):
 		"""Add price and availability details in result."""
+
+		wishlist_items = frappe.db.get_values(
+			"Wishlist Item", filters={"parent": frappe.session.user}, fieldname="item_code"
+		)
+		wishlist_items = set(row[0] for row in wishlist_items)
+
 		for item in result:
 			product_info = get_product_info_for_website(item.item_code, skip_quotation_creation=True).get(
 				"product_info"
@@ -234,12 +240,7 @@ class ProductQuery:
 				self.get_stock_availability(item)
 
 			item.in_cart = item.item_code in cart_items
-
-			item.wished = False
-			if frappe.db.exists(
-				"Wishlist Item", {"item_code": item.item_code, "parent": frappe.session.user}
-			):
-				item.wished = True
+			item.wished = item.item_code in wishlist_items
 
 		return result, discount_list
 
