@@ -952,23 +952,11 @@ def get_itemised_tax_breakup_html(doc):
 		if tax.description not in tax_accounts:
 			tax_accounts.append(tax.description)
 
-<<<<<<< HEAD
 	with temporary_flag("company", doc.company):
 		headers = get_itemised_tax_breakup_header(doc.doctype + " Item", tax_accounts)
-		itemised_tax, itemised_taxable_amount = get_itemised_tax_breakup_data(doc)
-		get_rounded_tax_amount(itemised_tax, doc.precision("tax_amount", "taxes"))
+		itemised_tax_data = get_itemised_tax_breakup_data(doc)
+		get_rounded_tax_amount(itemised_tax_data, doc.precision("tax_amount", "taxes"))
 		update_itemised_tax_data(doc)
-=======
-	headers = get_itemised_tax_breakup_header(doc.doctype + " Item", tax_accounts)
-
-	# get tax breakup data
-	itemised_tax_data = get_itemised_tax_breakup_data(doc)
-
-	get_rounded_tax_amount(itemised_tax_data, doc.precision("tax_amount", "taxes"))
-
-	update_itemised_tax_data(doc)
-	frappe.flags.company = None
->>>>>>> b84deec601 (fix: Correct Tax Breakup for different tax rates for same hsn code)
 
 	return frappe.render_template(
 		"templates/includes/itemised_tax_breakup.html",
